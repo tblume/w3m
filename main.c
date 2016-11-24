@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <errno.h>
 #include <fcntl.h>
 #if defined(HAVE_WAITPID) || defined(HAVE_WAIT3)
 #include <sys/wait.h>
@@ -242,6 +243,7 @@ fusage(FILE * f, int err)
     fprintf(f, "    -header string   insert string as a header\n");
     fprintf(f, "    +<num>           goto <num> line\n");
     fprintf(f, "    -num             show line number\n");
+    fprintf(f, "    -session=<id>    use session <id>\n");
     fprintf(f, "    -no-proxy        don't use proxy\n");
 #ifdef INET6
     fprintf(f, "    -4               IPv4 only (-o dns_order=4)\n");
@@ -282,6 +284,8 @@ fusage(FILE * f, int err)
 static char *getCodePage(void);
 #endif
 #endif
+
+char *loadBufferInfo(void);
 
 static GC_warn_proc orig_GC_warn_proc = NULL;
 #define GC_WARN_KEEP_MAX (20)
@@ -750,6 +754,8 @@ main(int argc, char **argv, char **envp)
 		squeezeBlankLine = TRUE;
 	    else if (!strcmp("-X", argv[i]))
 		Do_not_use_ti_te = TRUE;
+	    else if (!strncmp("-session=", argv[i], 9))
+		Session = argv[i] + 9;
 	    else if (!strcmp("-title", argv[i]))
 		displayTitleTerm = getenv("TERM");
 	    else if (!strncmp("-title=", argv[i], 7))
@@ -799,6 +805,22 @@ main(int argc, char **argv, char **envp)
 	}
 	i++;
     }
+
+    /* if last session has been saved, get last URL */
+    {
+	char * str;	/* we blantantly skip the release of this memory --
+			   this seems to be the way to do things in w3m anyway
+			   ...*/
+	if (Session && (str = loadBufferInfo()) != NULL ) {
+	    /* The URL from last session overrides the URL(s) from the command
+	     * line */
+	    load_argv[0] = str;
+	    load_argc = 1;
+	}
+    }
+#ifdef USE_HISTORY
+    loadHistory(URLHist);
+#endif                         /* not USE_HISTORY */
 
 #ifdef	__WATT32__
     if (w3m_debug)
@@ -1478,14 +1500,54 @@ tmpClearBuffer(Buffer *buf)
 static Str currentURL(void);
 
 #ifdef USE_BUFINFO
+char *
+loadBufferInfo()
+{
+    FILE *fp;
+    Str line;
+    char *str;
+#define FNAMELEN 255
+    char fname[FNAMELEN+1] = "bufinfo";
+
+    if (Session) {
+        strncat(fname, ".", FNAMELEN -6 - strlen(fname));
+        strncat(fname, Session, FNAMELEN -6 - strlen(fname));
+    }
+    if ((fp = fopen(rcFile(fname), "r")) == NULL) {
+	if (errno != ENOENT)
+	    perror("error reading bufinfo file");
+	return NULL;
+    }
+    line = Strfgets(fp);
+    Strchop(line);
+    Strremovefirstspaces(line);
+    Strremovetrailingspaces(line);
+    fclose(fp);
+    if (line->length == 0) {
+	str=NULL;
+    } else {
+	str=allocStr(line->ptr, -1);
+    }
+    Strclear(line);
+    Strfree(line);
+    return str;
+}
+
 void
 saveBufferInfo()
 {
     FILE *fp;
+#define FNAMELEN 255
+    char fname[FNAMELEN+1] = "bufinfo";
 
     if (w3m_dump)
 	return;
-    if ((fp = fopen(rcFile("bufinfo"), "w")) == NULL) {
+    if (Session) {
+        strncat(fname, ".", FNAMELEN -6 - strlen(fname));
+        strncat(fname, Session, FNAMELEN -6 - strlen(fname));
+    }
+    if ((fp = fopen(rcFile(fname), "w")) == NULL) {
+	perror("error writing bufinfo file");
 	return;
     }
     fprintf(fp, "%s\n", currentURL()->ptr);

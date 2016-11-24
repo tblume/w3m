@@ -959,6 +959,7 @@ global int emacs_like_lineedit init(FALSE);
 global int vi_prec_num init(FALSE);
 global int label_topline init(FALSE);
 global int nextpage_topline init(FALSE);
+global char *Session init(NULL);
 global char *displayTitleTerm init(NULL);
 global int displayLink init(FALSE);
 global int displayLinkNumber init(FALSE);

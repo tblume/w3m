@@ -1,5 +1,6 @@
 /* $Id: history.c,v 1.11 2003/09/26 17:59:51 ukai Exp $ */
 #include "fm.h"
+#include <errno.h>
 
 #ifdef USE_HISTORY
 Buffer *
@@ -36,11 +37,21 @@ loadHistory(Hist *hist)
 {
     FILE *f;
     Str line;
+#define FNAMELEN 255
+    char fname[FNAMELEN+1] = HISTORY_FILE;
+
 
     if (hist == NULL)
 	return;
-    if ((f = fopen(rcFile(HISTORY_FILE), "rt")) == NULL)
+    if (Session) {
+        strncat(fname, ".", FNAMELEN -6 - strlen(fname));
+        strncat(fname, Session, FNAMELEN -6 - strlen(fname));
+    }
+    if ((f = fopen(rcFile(fname), "rt")) == NULL) {
+	if (errno != ENOENT)
+	    perror("error reading history file");
 	return;
+    }
 
     while (!feof(f)) {
 	line = Strfgets(f);
@@ -61,6 +72,8 @@ saveHistory(Hist *hist, size_t size)
     HistItem *item;
     char *tmpf;
     int rename_ret;
+#define FNAMELEN 255
+    char fname[FNAMELEN+1] = HISTORY_FILE;
 
     if (hist == NULL || hist->list == NULL)
 	return;
@@ -80,7 +93,12 @@ saveHistory(Hist *hist, size_t size)
 	disp_err_message("Can't save history", FALSE);
 	return;
     }
-    rename_ret = rename(tmpf, rcFile(HISTORY_FILE));
+
+    if (Session) {
+       strncat(fname, ".", FNAMELEN -6 - strlen(fname));
+       strncat(fname, Session, FNAMELEN -6 - strlen(fname));
+    }
+    rename_ret = rename(tmpf, rcFile(fname));
     if (rename_ret != 0) {
 	disp_err_message("Can't save history", FALSE);
 	return;
