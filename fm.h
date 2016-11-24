@@ -748,7 +748,7 @@ struct cookie {
 						/* version 1' refers to the Internet draft to obsolete RFC 2109 */
 #define COO_EINTERNAL	(1)	/* unknown error; probably forgot to convert "return 1" in cookie.c */
 #define COO_ETAIL	(2 | COO_OVERRIDE_OK)	/* tail match failed (version 0) */
-#define COO_ESPECIAL	(3)	/* special domain check failed (version 0) */
+#define COO_ESPECIAL	(3 | COO_OVERRIDE_OK)	/* special domain check failed (version 0) */
 #define COO_EPATH	(4)	/* Path attribute mismatch (version 1 case 1) */
 #define COO_ENODOT	(5 | COO_OVERRIDE_OK)	/* no embedded dots in Domain (version 1 case 2.1) */
 #define COO_ENOTV1DOM	(6 | COO_OVERRIDE_OK)	/* Domain does not start with a dot (version 1 case 2.2) */
